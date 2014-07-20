@@ -4,8 +4,8 @@
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
-const unsigned char TimeOFF1=3, TimeOFF2=10;
-unsigned char Lamp1 =0, TimeOutA0=1;
+const unsigned char TimeOFF1=3, TimeOFF2=2;
+unsigned char Lamp1 =0, TimeOutA0=1, TimeOutA1=1;
 unsigned int  L2Delay1=0, L2Delay2;
 
 int main( void )
@@ -45,10 +45,12 @@ int main( void )
   P2REN = BIT4;
   P2DIR |= BIT1+BIT2;
   P3DIR |= BIT2;
- 
+
+  
   CCTL0 = CCIE;                             // CCR0 interrupt enabled
   CCR0 = 0x7800;                            // 1min = 0x7800 1sec = 0x200
   TACTL = ID_3+TASSEL_1 + MC_1;             // ACLK, upmode
+
   
   P2IE |= BIT5+BIT4+BIT3;                   // interrupt enabled
   P2IES |= BIT5+BIT3;                       // Hi/lo edge
@@ -81,7 +83,7 @@ __interrupt void Port_2(void)
     }
   if (0x10 & P2IFG) 
     {L2Delay2 = TA0R - L2Delay1;              //Contact bounce delay
-    if (L2Delay2>0x0100)                      //500 ms
+    if (L2Delay2>0x0080)                      // 250 ms
        {if (Lamp1) P2OUT ^= BIT2;             //Toggle Lamp2 OFF
        }
     P2IFG &= ~BIT4;                           // P2.4 SW1 Lamp2
@@ -100,29 +102,52 @@ __interrupt void Port_2(void)
        if (delta>0xA00) 
           {P2OUT &= ~BIT1;                    // Main Lamp1 OFF
            P2OUT &= ~BIT2;                    // Lamp2 OFF
-           P2OUT &= ~BIT3;                    // Lamp2 OFF
+           P3OUT &= ~BIT2;                    // Lamp2 OFF
            Lamp1 =0;
            TACTL = MC_0;
+           TA1CTL = MC_0;
            TA0R = 0x0000;
-          }
+           TA1R = 0x0000;}
+       P2IFG = 0;
        if (delta>0x7800) break;
        }
       
     }
-  if (0x08 & P2IFG) P2IFG &= ~BIT3;
+  if (0x08 & P2IFG) 
+    {TA1CCTL0 = CCIE;                          // CCR0 interrupt enabled
+     TA1CCR0 = 0x080;                         // 1min = 0x7800 1sec = 0x200
+     TA1CTL = ID_3+TASSEL_1 + MC_1;            // ACLK, upmode
+     while (TA1R<0x070);
+     TA1CTL = MC_0;
+
+     TA1CCTL0 = CCIE;                          // CCR0 interrupt enabled
+     TA1CCR0 = 0x7800;                         // 1min = 0x7800 1sec = 0x200
+     TA1CTL = ID_3+TASSEL_1 + MC_1;            // ACLK, upmode     
+     TimeOutA1=TimeOFF2;
+     P3OUT ^= BIT2;
+     P2IFG &= ~BIT3;
+     }
  }
 
 
 // Timer A0 interrupt service routine
 #pragma vector=TIMER0_A0_VECTOR
-__interrupt void Timer_A (void)
+__interrupt void TIMER0_A0_ISR (void)
 { TimeOutA0 = TimeOutA0-1;
   if (TimeOutA0<1)
   {P2OUT &= ~BIT1;                            // Main Lamp1 OFF
-  P2OUT &= ~BIT2;                            // Lamp2 OFF
+  P2OUT &= ~BIT2;                             // Lamp2 OFF
   Lamp1 =0;
   TACTL = MC_0;
   }
   CCR0 = 0x7800;
 }
 
+// TA0_A1 Interrupt vector
+#pragma vector = TIMER1_A0_VECTOR
+__interrupt void TIMER1_A0_ISR (void)
+{ TimeOutA1 = TimeOutA1-1;
+  if (TimeOutA1<1)
+  {P3OUT &= ~BIT2;                           // Fan OFF
+  TA1CTL = MC_0;}
+}

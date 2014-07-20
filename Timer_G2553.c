@@ -6,7 +6,7 @@
 #include <stdlib.h>
 const unsigned char TimeOFF1=3, TimeOFF2=10, Bounce_delay=0x080;
 const unsigned char Port_Lamp1=0x20, Port_Lamp2=0x10, Port_Fan=0x08;
-const unsigned int Minute=0x7800, TimeAllOFF=0xA00; //1sec = 0x200
+const unsigned int Minute=0x7800, TimeAllOFF=0x600; //1sec = 0x200
 unsigned char Lamp1 =0, TimeOutA0=1, TimeOutA1=1;
 unsigned int  L2Delay1=0, L2Delay2;
 

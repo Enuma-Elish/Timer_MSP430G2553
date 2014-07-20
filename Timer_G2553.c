@@ -85,8 +85,29 @@ __interrupt void Port_2(void)
        {if (Lamp1) P2OUT ^= BIT2;             //Toggle Lamp2 OFF
        }
     P2IFG &= ~BIT4;                           // P2.4 SW1 Lamp2
+    
+    if (TA0R<0x1400)
+       {TACTL = MC_0;
+       TA0R = 0x0000;
+       CCTL0 = CCIE;                          // CCR0 interrupt enabled
+       CCR0 = 0x7800;
+       TACTL = ID_3+TASSEL_1 + MC_1;          // ACLK, upmode
+       }
     L2Delay1 = TA0R;
-    while (0x10 & P2IN) ;
+    while (0x10 & P2IN) 
+       {unsigned int delta;
+       delta = TA0R - L2Delay1;
+       if (delta>0xA00) 
+          {P2OUT &= ~BIT1;                    // Main Lamp1 OFF
+           P2OUT &= ~BIT2;                    // Lamp2 OFF
+           P2OUT &= ~BIT3;                    // Lamp2 OFF
+           Lamp1 =0;
+           TACTL = MC_0;
+           TA0R = 0x0000;
+          }
+       if (delta>0x7800) break;
+       }
+      
     }
   if (0x08 & P2IFG) P2IFG &= ~BIT3;
  }
